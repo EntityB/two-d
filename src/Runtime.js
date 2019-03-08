@@ -1,6 +1,18 @@
-export const Runtime = function (gl) {
+/**
+ * 
+ * @param {*} gl 
+ * @param {*} viewportDimension 
+ */
+export const Runtime = function (gl, viewportDimension, opt_spriteLimit) {
     this.gl = gl
-    this._spritesToRender = 10000
+
+    if (!viewportDimension || !viewportDimension[0] || !viewportDimension[1]) {
+        throw "Failed to initalize viewport dimension"
+    }
+    this._viewportDimension = viewportDimension
+    this.spriteLimit = opt_spriteLimit || 10000
+    this._spriteCount = 0
+    this.updateRegistry = []
     this._init()
 }
 
@@ -11,7 +23,8 @@ Runtime.prototype = {
         // an attribute is an input (in) to a vertex shader.
         // It will receive data from a buffer
         in vec2 a_position;
-        in vec4 a_color;
+        in vec2 a_color;
+        in vec2 a_colorb;
         out vec4 v_color;
 
         // Used to pass in the resolution of the canvas
@@ -29,7 +42,7 @@ Runtime.prototype = {
           // convert from 0->2 to -1->+1 (clipspace)
           vec2 clipSpace = zeroToTwo - 1.0;
         
-          v_color = a_color;
+          v_color = vec4(a_color[0], a_color[1], a_colorb[0], a_colorb[1]);
           gl_Position = vec4(clipSpace, 0, 1);
         }
         `
@@ -85,6 +98,7 @@ Runtime.prototype = {
         let resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
 
         let colorAttributeLocation = gl.getAttribLocation(program, "a_color")
+        let colorbAttributeLocation = gl.getAttribLocation(program, "a_colorb")
 
         // Create a buffer and put a single pixel space rectangle in
         // it (2 triangles)
@@ -99,6 +113,7 @@ Runtime.prototype = {
         // Turn on the attribute
         gl.enableVertexAttribArray(positionAttributeLocation)
         gl.enableVertexAttribArray(colorAttributeLocation)
+        gl.enableVertexAttribArray(colorbAttributeLocation)
 
 
 
@@ -107,8 +122,8 @@ Runtime.prototype = {
         // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
         gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
 
-        let positionTypeArray = new Float32Array(12 * this._spritesToRender)
-        gl.bufferData(gl.ARRAY_BUFFER, positionTypeArray, gl.DYNAMIC_DRAW)
+        let positionTypeArray = new Float32Array(12 * this.spriteLimit)
+        gl.bufferData(gl.ARRAY_BUFFER, positionTypeArray, gl.STREAM_DRAW)
 
         // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
         let size = 2          // 2 components per iteration
@@ -126,11 +141,11 @@ Runtime.prototype = {
         // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
         gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer)
 
-        let colorTypeArray = new Float32Array(24 * this._spritesToRender)
-        gl.bufferData(gl.ARRAY_BUFFER, colorTypeArray, gl.DYNAMIC_DRAW)
+        let colorTypeArray = new Float32Array(12 * this.spriteLimit)
+        gl.bufferData(gl.ARRAY_BUFFER, colorTypeArray, gl.STREAM_DRAW)
 
         // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-        size = 4          // 2 components per iteration
+        size = 2          // 2 components per iteration
         type = gl.FLOAT   // the data is 32bit floats
         normalize = false // don't normalize the data
         stride = 0        // 0 = move forward size * sizeof(type) each iteration to get the next position
@@ -139,6 +154,24 @@ Runtime.prototype = {
         this.colorTypeArray = colorTypeArray
         this.colorBuffer = colorBuffer
 
+
+
+        let colorbBuffer = gl.createBuffer()
+        // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorbBuffer)
+
+        let colorbTypeArray = new Float32Array(12 * this.spriteLimit)
+        gl.bufferData(gl.ARRAY_BUFFER, colorbTypeArray, gl.STREAM_DRAW)
+
+        // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+        size = 2          // 2 components per iteration
+        type = gl.FLOAT   // the data is 32bit floats
+        normalize = false // don't normalize the data
+        stride = 0        // 0 = move forward size * sizeof(type) each iteration to get the next position
+        offset = 0        // start at the beginning of the buffer
+        gl.vertexAttribPointer(colorbAttributeLocation, size, type, normalize, stride, offset)
+        this.colorbTypeArray = colorbTypeArray
+        this.colorbBuffer = colorbBuffer
 
         // Tell it to use our program (pair of shaders)
         gl.useProgram(program)
@@ -149,8 +182,9 @@ Runtime.prototype = {
     },
     start: function () {
 
-        let step = () => {
+        let step = (deltaTime) => {
             this._render()
+            this._update(deltaTime * 0.001)
             window.requestAnimationFrame(step)
         }
 
@@ -159,39 +193,75 @@ Runtime.prototype = {
     stop: function () {
 
     },
-    createSprite: function () {
-        let gl = this.gl
+    registerSprite: function (position, color) {
+        let index = this._spriteCount
+
+        this._spriteCount++
 
         this.positionTypeArray.set([
-            10, 20,
-            80, 20,
-            10, 30,
-            10, 30,
-            80, 20,
-            80, 30,
-        ], 0)
+            position[0], position[1],
+            position[2], position[1],
+            position[0], position[3],
+            position[0], position[3],
+            position[2], position[1],
+            position[2], position[3]
+        ], 6 * 2 * index)
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.positionTypeArray)
-
-        let c = [Math.random(), Math.random(), Math.random(), 1]
+        let c = color
         this.colorTypeArray.set([
-            ...c,
-            ...c,
-            ...c,
-            ...c,
-            ...c,
-            ...c
-        ], 0)
+            c[0], c[1],
+            c[0], c[1],
+            c[0], c[1],
+            c[0], c[1],
+            c[0], c[1],
+            c[0], c[1]
+        ], 6 * 2 * index)
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer)
-        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colorTypeArray)
+        this.colorbTypeArray.set([
+            c[2], c[3],
+            c[2], c[3],
+            c[2], c[3],
+            c[2], c[3],
+            c[2], c[3],
+            c[2], c[3]
+        ], 6 * 2 * index)
+
+
+        return index
+    },
+    updateSprite: function (index, opt_position, opt_color) {
+        if (typeof index !== 'number') {
+            throw "sprite index must be provided"
+        }
+
+        if (opt_position) {
+            let position = opt_position
+            this.positionTypeArray.set([
+                position[0], position[1],
+                position[2], position[1],
+                position[0], position[3],
+                position[0], position[3],
+                position[2], position[1],
+                position[2], position[3]
+            ], 6 * 2 * index)
+        }
+
+        return index
     },
     _render: function () {
         let gl = this.gl
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.positionBuffer)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.positionTypeArray)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorBuffer)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colorTypeArray)
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.colorbBuffer)
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, this.colorbTypeArray)
+
         // Tell WebGL how to convert from clip space to pixels
-        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height)
+        gl.viewport(0, 0, this._viewportDimension[0], this._viewportDimension[1])
 
         // Clear the canvas
         gl.clearColor(0, 0, 0, 0)
@@ -199,23 +269,34 @@ Runtime.prototype = {
 
         let primitiveType = gl.TRIANGLES
         let offset = 0
-        let count = 6 * this._spritesToRender
+        let count = 6 * this.spriteLimit
         gl.drawArrays(primitiveType, offset, count)
+    },
+    _update: function (deltaTime) {
+        this.updateRegistry.forEach(callback => {
+            try {
+                callback(deltaTime)
+            } catch (e) {
+                console.error("Failed to cast update with error: " + e)
+            }
+        })
+    },
+    /**
+     * This callback is displayed as part of the Requester class.
+     * @callback Runtime~registerUpdateCallback
+     * @param {number} deltaTime
+     */
+    /**
+     * 
+     * @param {Runtime~registerUpdateCallback} callback 
+     */
+    registerUpdate: function (callback) {
+        if (typeof callback !== 'function') {
+            throw "Callback argument must be a function"
+        }
+        return this.updateRegistry.push(callback)
+    },
+    unregisterUpdate: function (index) {
+        return this.updateRegistry.splice(index, 1)
     }
-}
-
-// Fill the buffer with the values that define a rectangle.
-function setRectangle(gl, x, y, width, height) {
-    var x1 = x;
-    var x2 = x + width;
-    var y1 = y;
-    var y2 = y + height;
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
-        x1, y1,
-        x2, y1,
-        x1, y2,
-        x1, y2,
-        x2, y1,
-        x2, y2,
-    ]), gl.STATIC_DRAW);
 }
