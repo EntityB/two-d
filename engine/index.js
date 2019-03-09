@@ -30,6 +30,6 @@ lib.prototype = {
     }
 }
 
-export const twod = function (canvasElement, viewportDimension, opt_spriteLimit) {
+export const engine = function (canvasElement, viewportDimension, opt_spriteLimit) {
     return new lib(canvasElement, viewportDimension, opt_spriteLimit)
 }

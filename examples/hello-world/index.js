@@ -1,8 +1,10 @@
 
+import { engine } from '../../engine/index'
+
 
 let cEl = document.getElementById("app")
 
-let app = twod(cEl, [864, 480], 30000)
+let app = engine(cEl, [864, 480], 30000)
 
 
 for (let i = 0; i < 10000; i++) {
