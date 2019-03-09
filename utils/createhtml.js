@@ -5,7 +5,7 @@ console.log("\n\nCreating index.html file ...")
 
 const isJsFile = file => file.endsWith(".js")
 
-let listOfExamples = readdirSync('preview').filter(isJsFile).map(example => `<li><a href="#${example}">${example}</a></li>`)
+let listOfExamples = readdirSync('docs').filter(isJsFile).map(example => `<li><a href="#${example}">${example}</a></li>`)
 
 const fileContent =
     `<html>
@@ -38,7 +38,7 @@ const fileContent =
 
 </html>`
 
-writeFile(resolve(__dirname, join('..', 'preview', 'index.html')), fileContent, (err) => {
+writeFile(resolve(__dirname, join('..', 'docs', 'index.html')), fileContent, (err) => {
     if (err) throw err
 
     console.log("index.html was created")

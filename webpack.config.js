@@ -25,7 +25,7 @@ const config = {
   entry: entries,
   output: {
     filename: '[name].js',
-    path: resolve(__dirname, 'preview'),
+    path: resolve(__dirname, 'docs'),
     libraryTarget: 'global'
   },
   module: {
