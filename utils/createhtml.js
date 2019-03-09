@@ -1,11 +1,11 @@
 const { readdirSync, writeFile } = require('fs')
 const { join, resolve } = require('path')
 
-console.log("\n\nCreating index.html file\n\n")
+console.log("\n\nCreating index.html file ...")
 
-console.log(readdirSync('preview'))
+const isJsFile = file => file.endsWith(".js")
 
-let listOfExamples = readdirSync('preview').map(example => `<li><a href="#${example}">${example}</a></li>`)
+let listOfExamples = readdirSync('preview').filter(isJsFile).map(example => `<li><a href="#${example}">${example}</a></li>`)
 
 const fileContent =
     `<html>

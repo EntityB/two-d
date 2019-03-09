@@ -91,9 +91,14 @@
 "use strict";
 __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _engine_index__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+ // <canvas id="app" width=864 height=480></canvas>
 
-let cEl = document.getElementById("app");
-let app = Object(_engine_index__WEBPACK_IMPORTED_MODULE_0__["engine"])(cEl, [864, 480], 30000);
+let canvasEl = document.createElement('canvas');
+canvasEl.width = 864;
+canvasEl.height = 480;
+canvasEl.style.border = "2px solid black";
+document.body.append(canvasEl);
+let app = Object(_engine_index__WEBPACK_IMPORTED_MODULE_0__["engine"])(canvasEl, [864, 480], 30000);
 
 for (let i = 0; i < 10000; i++) {
   let topLeft = [Math.floor(Math.random() * 864), Math.floor(Math.random() * 480)];
@@ -102,7 +107,7 @@ for (let i = 0; i < 10000; i++) {
   let sprite = app.createSprite(topLeft, dimension, color);
 }
 
-for (i = 0; i < 10000; i++) {
+for (let i = 0; i < 10000; i++) {
   let topLeft = [Math.floor(Math.random() * 10000) - 5000, Math.floor(Math.random() * 480)];
   let dimension = [Math.floor(Math.random() * 100), Math.floor(Math.random() * 40)];
   let color = [Math.random(), Math.random(), Math.random(), 1];
